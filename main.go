@@ -120,6 +120,13 @@ func main() {
 		}
 	}
 
+	groups, err := client.GetJoinedGroups()
+	if err != nil {
+		log.Printf("Error getting joined groups!")
+	}
+	for _, group := range groups {
+		log.Printf("Name: %s, JID: %s", group.GroupName.Name, group.JID)
+	}
 	// Listen to Ctrl+C (you can also do something else that prevents the program from exiting)
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
