@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	qrterminal "github.com/mdp/qrterminal/v3"
-	gonfig "github.com/tkanos/gonfig"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
@@ -20,9 +20,9 @@ import (
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
-type Configuration struct {
-	ApiUrl string
-	ApiKey string
+type configuration struct {
+	ApiUrl string `json:"api_url"`
+	ApiKey string `json:"api_key"`
 }
 
 type auth struct {
@@ -40,10 +40,14 @@ func eventHandler(evt interface{}) {
 func main() {
 
 	// load config.json
-	config := Configuration{}
-	err := gonfig.GetConf("config.json", &config)
+	var config configuration
+	f, err := os.Open("config.json")
 	if err != nil {
-		panic(err)
+		log.Fatalf("Could not open config.json: %s", err)
+	}
+	decoder := json.NewDecoder(f)
+	if err = decoder.Decode(&config); err != nil {
+		log.Fatalf("Error decoding config.json: %s", err)
 	}
 
 	conn, _, err := websocket.DefaultDialer.Dial(config.ApiUrl, nil)
