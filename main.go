@@ -104,10 +104,14 @@ func main() {
 		for evt := range qrChan {
 			if evt.IsQR() {
 				qrterminal.GenerateHalfBlock(string(evt), qrterminal.L, os.Stdout)
+			}
+			if evt == whatsmeow.QRChannelSuccess {
+				break
 			} else {
 				fmt.Printf("Login event: %s", evt)
 			}
 		}
+		client.Connect()
 	} else {
 		// Already logged in, just connect
 		err = client.Connect()
