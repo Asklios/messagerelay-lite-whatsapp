@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
-	"time"
 
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
@@ -71,13 +71,12 @@ func main() {
 			log.Printf("Received websocket message: %s", message)
 		}
 	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	data := auth{"code", config.ApiKey}
 
-	for {
-		conn.WriteJSON(data)
-		time.Sleep(time.Second)
-	} //TODO: running forever, the following code is so not executed
+	conn.WriteJSON(data)
 
 	//edited whatsmeow-example from https://godocs.io/go.mau.fi/whatsmeow#example-package
 
