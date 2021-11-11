@@ -13,16 +13,20 @@ import (
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	qrterminal "github.com/mdp/qrterminal/v3"
+	"google.golang.org/protobuf/proto"
 
 	"go.mau.fi/whatsmeow"
+	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store/sqlstore"
+	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
 type configuration struct {
-	ApiUrl string `json:"api_url"`
-	ApiKey string `json:"api_key"`
+	ApiUrl  string   `json:"api_url"`
+	ApiKey  string   `json:"api_key"`
+	WIDJIDs []string `json:"wid_jids"`
 }
 
 type auth struct {
@@ -57,20 +61,6 @@ func main() {
 
 	defer conn.Close()
 
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-		for {
-			//TODO: reconnect if websocket is closed
-			_, message, err := conn.ReadMessage()
-			if err != nil {
-				log.Printf("Error during websocket read: %s", err)
-				return
-			}
-			log.Printf("Received websocket message: %s", message)
-		}
-	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -127,6 +117,41 @@ func main() {
 	for _, group := range groups {
 		log.Printf("Name: %s, JID: %s", group.GroupName.Name, group.JID)
 	}
+
+	go func() {
+		for {
+			//TODO: reconnect if websocket is closed
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				log.Printf("Error during websocket read: %s", err)
+
+				wg.Done()
+				return
+			}
+			var jsonMessage map[string]interface{}
+			err = json.Unmarshal(message, &jsonMessage)
+			if err != nil {
+				log.Printf("Could not decode message: %s, error is: %s", message, err)
+			}
+			switch jsonMessage["type"].(string) {
+			case "verified":
+				log.Print("Logged into API")
+			case "create":
+				for _, wid := range config.WIDJIDs {
+					jid, err := types.ParseJID(wid)
+					if err != nil {
+						fmt.Printf("Error parsing JID: %s", err)
+					}
+					message := &waProto.Message{Conversation: proto.String(jsonMessage["content"].(string))}
+					_, err = client.SendMessage(jid, "", message)
+					if err != nil {
+						log.Printf("Error sending message: %s", err)
+					}
+				}
+			}
+		}
+	}()
+
 	// Listen to Ctrl+C (you can also do something else that prevents the program from exiting)
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

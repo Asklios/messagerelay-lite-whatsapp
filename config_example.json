@@ -1,4 +1,7 @@
 {
     "api_url": "wss://example.com/api/v1/gateway/backend",
-    "api_key": "abcdef"
+    "api_key": "abcdef",
+    "wid_jids": [
+        "1234@g.us"
+    ]
 }
