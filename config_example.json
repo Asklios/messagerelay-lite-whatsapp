@@ -1,0 +1,4 @@
+{
+    "api_url": "wss://example.com/api/v1/gateway/backend",
+    "api_key": "abcdef"
+}
