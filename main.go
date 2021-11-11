@@ -52,7 +52,7 @@ func main() {
 
 	conn, _, err := websocket.DefaultDialer.Dial(config.ApiUrl, nil)
 	if err != nil {
-		fmt.Println("websocket err:", err)
+		log.Fatalf("Websocket connection error: %s", err)
 	}
 
 	defer conn.Close()
@@ -65,10 +65,10 @@ func main() {
 			//TODO: reconnect if websocket is closed
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
+				log.Printf("Error during websocket read: %s", err)
 				return
 			}
-			log.Printf("recv: %s", message)
+			log.Printf("Received websocket message: %s", message)
 		}
 	}()
 
@@ -100,20 +100,20 @@ func main() {
 		qrChan, _ := client.GetQRChannel(context.Background())
 		err = client.Connect()
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error during new client connect: %s", err)
 		}
 		for evt := range qrChan {
 			if evt.IsQR() {
 				qrterminal.GenerateHalfBlock(string(evt), qrterminal.L, os.Stdout)
 			} else {
-				fmt.Println("Login event:", evt)
+				fmt.Printf("Login event: %s", evt)
 			}
 		}
 	} else {
 		// Already logged in, just connect
 		err = client.Connect()
 		if err != nil {
-			panic(err)
+			log.Fatalf("Error during connecting already existing client: %s", err)
 		}
 	}
 
