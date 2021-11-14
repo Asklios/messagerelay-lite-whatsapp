@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
@@ -58,8 +59,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Websocket connection error: %s", err)
 	}
-
-	defer conn.Close()
+	connected := true
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -119,11 +119,13 @@ func main() {
 	}
 
 	go func() {
-		for {
+		for connected {
 			//TODO: reconnect if websocket is closed
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				log.Printf("Error during websocket read: %s", err)
+				if connected {
+					log.Printf("Error during websocket read: %s", err)
+				}
 
 				wg.Done()
 				return
@@ -148,6 +150,8 @@ func main() {
 						log.Printf("Error sending message: %s", err)
 					}
 				}
+			default:
+				log.Printf("Got unknown message type: %s", message)
 			}
 		}
 	}()
@@ -158,4 +162,14 @@ func main() {
 	<-c
 
 	client.Disconnect()
+	connected = false
+	// TODO: Make this race condition proof
+	<-time.After(time.Millisecond * 10)
+	err = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Disconnected by user request"))
+	if err != nil {
+		log.Printf("Error during websocket close: %s", err)
+		return
+	}
+	<-time.After(time.Millisecond * 10)
+	conn.Close()
 }
