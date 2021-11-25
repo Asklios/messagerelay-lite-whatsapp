@@ -152,9 +152,20 @@ func main() {
 					rawMessage := jsonMessage["content"].(string)
 					formatedMessage := util.ConvertHTMLToWAStyle(rawMessage)
 					message := &waProto.Message{Conversation: proto.String(formatedMessage)}
-					_, err = client.SendMessage(jid, "", message)
+					_, err = client.SendMessage(jid, jsonMessage["id"].(string), message)
 					if err != nil {
 						log.Printf("Error sending message: %s", err)
+					}
+				}
+			case "delete":
+				for _, wid := range config.WIDJIDs {
+					jid, err := types.ParseJID(wid)
+					if err != nil {
+						fmt.Printf("Error parsing JID: %s", err)
+					}
+					_, err = client.RevokeMessage(jid, jsonMessage["id"].(string))
+					if err != nil {
+						log.Printf("Could not revoke message %s: %s", jsonMessage["id"].(string), err)
 					}
 				}
 			default:
