@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Asklios/messagerelay-lite-whatsapp/util"
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	qrterminal "github.com/mdp/qrterminal/v3"
@@ -144,7 +145,9 @@ func main() {
 					if err != nil {
 						fmt.Printf("Error parsing JID: %s", err)
 					}
-					message := &waProto.Message{Conversation: proto.String(jsonMessage["content"].(string))}
+					rawMessage := jsonMessage["content"].(string)
+					formatedMessage := util.ConvertHTMLToWAStyle(rawMessage)
+					message := &waProto.Message{Conversation: proto.String(formatedMessage)}
 					_, err = client.SendMessage(jid, "", message)
 					if err != nil {
 						log.Printf("Error sending message: %s", err)
