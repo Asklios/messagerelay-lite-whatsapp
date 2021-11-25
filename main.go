@@ -126,6 +126,10 @@ func main() {
 			if err != nil {
 				if connected {
 					log.Printf("Error during websocket read: %s", err)
+					conn, _, err = websocket.DefaultDialer.Dial(config.ApiUrl, nil)
+					if err != nil {
+						log.Fatalf("Error reconnecting Websocket: %s", err)
+					}
 				}
 
 				wg.Done()
