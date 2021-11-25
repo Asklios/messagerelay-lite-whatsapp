@@ -129,11 +129,11 @@ func main() {
 					conn, _, err = websocket.DefaultDialer.Dial(config.ApiUrl, nil)
 					if err != nil {
 						log.Fatalf("Error reconnecting Websocket: %s", err)
+						wg.Done()
+						return
 					}
+					continue
 				}
-
-				wg.Done()
-				return
 			}
 			var jsonMessage map[string]interface{}
 			err = json.Unmarshal(message, &jsonMessage)
