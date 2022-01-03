@@ -33,4 +33,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/jugendhacker/messagerelay-lite-whatsapp:latest
+            ghcr.io/${{ github.repository }}:latest
