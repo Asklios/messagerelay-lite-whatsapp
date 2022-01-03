@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
+	"github.com/Asklios/messagerelay-lite-whatsapp/util"
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	qrterminal "github.com/mdp/qrterminal/v3"
@@ -58,8 +60,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Websocket connection error: %s", err)
 	}
-
-	defer conn.Close()
+	connected := true
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -119,14 +120,20 @@ func main() {
 	}
 
 	go func() {
-		for {
+		for connected {
 			//TODO: reconnect if websocket is closed
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				log.Printf("Error during websocket read: %s", err)
-
-				wg.Done()
-				return
+				if connected {
+					log.Printf("Error during websocket read: %s", err)
+					conn, _, err = websocket.DefaultDialer.Dial(config.ApiUrl, nil)
+					if err != nil {
+						log.Fatalf("Error reconnecting Websocket: %s", err)
+						wg.Done()
+						return
+					}
+					continue
+				}
 			}
 			var jsonMessage map[string]interface{}
 			err = json.Unmarshal(message, &jsonMessage)
@@ -142,12 +149,27 @@ func main() {
 					if err != nil {
 						fmt.Printf("Error parsing JID: %s", err)
 					}
-					message := &waProto.Message{Conversation: proto.String(jsonMessage["content"].(string))}
-					_, err = client.SendMessage(jid, "", message)
+					rawMessage := jsonMessage["content"].(string)
+					formatedMessage := util.ConvertHTMLToWAStyle(rawMessage)
+					message := &waProto.Message{Conversation: proto.String(formatedMessage)}
+					_, err = client.SendMessage(jid, jsonMessage["id"].(string), message)
 					if err != nil {
 						log.Printf("Error sending message: %s", err)
 					}
 				}
+			case "delete":
+				for _, wid := range config.WIDJIDs {
+					jid, err := types.ParseJID(wid)
+					if err != nil {
+						fmt.Printf("Error parsing JID: %s", err)
+					}
+					_, err = client.RevokeMessage(jid, jsonMessage["id"].(string))
+					if err != nil {
+						log.Printf("Could not revoke message %s: %s", jsonMessage["id"].(string), err)
+					}
+				}
+			default:
+				log.Printf("Got unknown message type: %s", message)
 			}
 		}
 	}()
@@ -158,4 +180,14 @@ func main() {
 	<-c
 
 	client.Disconnect()
+	connected = false
+	// TODO: Make this race condition proof
+	<-time.After(time.Millisecond * 10)
+	err = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Disconnected by user request"))
+	if err != nil {
+		log.Printf("Error during websocket close: %s", err)
+		return
+	}
+	<-time.After(time.Millisecond * 10)
+	conn.Close()
 }
